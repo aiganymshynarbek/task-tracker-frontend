@@ -1,0 +1,29 @@
+:root {
+  --bg: #f8fafc;
+  /* Светло-серый фон */
+  --card: #ffffff;
+  /* Белые карточки */
+  --primary: #2563eb;
+  /* Насыщенный синий */
+  --primary-hover: #1d4ed8;
+  --text-main: #1e293b;
+  /* Почти черный для текста */
+  --text-dim: #64748b;
+  /* Серый для описаний */
+  --border: #e2e8f0;
+  /* Тонкие светлые границы */
+  --danger: #ef4444;
+  /* Красный для выхода */
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg);
+  color: var(--text-main);
+  line-height: 1.5;
+}
+
+* {
+  box-sizing: border-box;
+}
