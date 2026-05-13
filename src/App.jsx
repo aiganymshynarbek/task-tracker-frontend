@@ -9,6 +9,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
 import TaskDetail from './pages/TaskDetail';
+import CreateProject from './pages/CreateProject';
 
 function App() {
   const { user, logout } = useContext(AuthContext);
@@ -47,6 +48,7 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/tasks/:id" element={<TaskDetail />} />
+          <Route path="/create-project" element={<CreateProject />} />
         </Routes>
       </div>
     </Router>

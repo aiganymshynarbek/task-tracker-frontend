@@ -1,6 +1,7 @@
 import { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -8,11 +9,15 @@ export default function Login() {
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    // Имитация ответа сервера для теста фронта
-    login({ name: 'Aiganym', email });
-    navigate('/profile');
+    try {
+      const res = await api.post('/auth/login', { email, password });
+      login(res.data); // Сохраняем пользователя и токен
+      navigate('/profile');
+    } catch (err) {
+      alert("Неверный логин или пароль");
+    }
   };
 
   return (

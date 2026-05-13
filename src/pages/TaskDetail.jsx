@@ -1,62 +1,95 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-// Проверь, что lucide-react установлен! (npm install lucide-react)
+import api from '../services/api';
 import { Plus, CheckCircle, Circle, Trash2, X } from 'lucide-react';
 
 export default function TaskDetail() {
-  const { id } = useParams();
+  const { id } = useParams(); // Это ID проекта из URL
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newTask, setNewTask] = useState('');
-  const [tasks, setTasks] = useState([
-    { id: 1, title: 'Изучить документацию', completed: false },
-    { id: 2, title: 'Настроить окружение', completed: true },
-  ]);
+  const [tasks, setTasks] = useState([]);
 
-  const addTask = (e) => {
+  // 1. Исправленный запрос на получение задач (используем Query-параметр)
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const res = await api.get(`/tasks?projectId=${id}`);
+        setTasks(res.data);
+      } catch (err) {
+        console.error("Ошибка загрузки задач:", err.response?.data);
+      }
+    };
+    if (id) fetchTasks();
+  }, [id]);
+
+  // 2. Исправленное добавление задачи
+  const addTask = async (e) => {
     e.preventDefault();
     if (!newTask.trim()) return;
-    const task = { id: Date.now(), title: newTask, completed: false };
-    setTasks([...tasks, task]);
-    setNewTask('');
-    setIsModalOpen(false);
+    try {
+      // Напарник ждет минимум 2 символа в title
+      const res = await api.post('/tasks', { 
+        title: newTask, 
+        projectId: id,
+        status: 'Todo' // Явно указываем начальный статус
+      });
+      setTasks([res.data, ...tasks]);
+      setNewTask('');
+      setIsModalOpen(false);
+    } catch (err) {
+      console.error("Ошибка создания:", err.response?.data);
+      alert(err.response?.data?.message || "Ошибка при создании задачи. Убедитесь, что ID проекта верный.");
+    }
   };
 
-  const toggleTask = (taskId) => {
-    setTasks(tasks.map(t => t.id === taskId ? { ...t, completed: !t.completed } : t));
+  // 3. Исправленное переключение статуса (используем PUT и статус из модели)
+  const toggleTask = async (task) => {
+    try {
+      const newStatus = task.status === 'Done' ? 'Todo' : 'Done';
+      // Используем PUT, так как напарник не прописал PATCH
+      const res = await api.put(`/tasks/${task._id}`, { 
+        status: newStatus 
+      });
+      setTasks(tasks.map(t => t._id === task._id ? res.data : t));
+    } catch (err) {
+      console.error("Не удалось обновить статус:", err.response?.data);
+    }
   };
 
-  const deleteTask = (taskId) => {
-    setTasks(tasks.filter(t => t.id !== taskId));
+  const deleteTask = async (taskId) => {
+    try {
+      await api.delete(`/tasks/${taskId}`);
+      setTasks(tasks.filter(t => t._id !== taskId));
+    } catch (err) {
+      alert("Ошибка при удалении");
+    }
   };
 
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
-        <h1 style={{ color: 'var(--text-main)' }}>Задачи проекта #{id}</h1>
-        <button 
-          onClick={() => setIsModalOpen(true)} 
-          className="btn-primary" 
-          style={{ width: 'auto', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px' }}
-        >
-          <Plus size={20} /> Добавить задачу
+        <h1>Задачи проекта</h1>
+        <button onClick={() => setIsModalOpen(true)} className="btn-primary" style={{ width: 'auto', display: 'flex', gap: '8px' }}>
+          <Plus size={20} /> Добавить
         </button>
       </header>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+        {tasks.length === 0 && <p style={{ textAlign: 'center', color: 'var(--text-dim)' }}>Задач пока нет</p>}
         {tasks.map(task => (
-          <div key={task.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div key={task._id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-              <div onClick={() => toggleTask(task.id)} style={{ cursor: 'pointer', display: 'flex' }}>
-                {task.completed ? <CheckCircle color="#10b981" /> : <Circle color="#94a3b8" />}
+              <div onClick={() => toggleTask(task)} style={{ cursor: 'pointer', display: 'flex' }}>
+                {task.status === 'Done' ? <CheckCircle color="#10b981" /> : <Circle color="#94a3b8" />}
               </div>
               <span style={{ 
-                textDecoration: task.completed ? 'line-through' : 'none', 
-                color: task.completed ? '#94a3b8' : 'inherit' 
+                textDecoration: task.status === 'Done' ? 'line-through' : 'none', 
+                color: task.status === 'Done' ? '#94a3b8' : 'inherit' 
               }}>
                 {task.title}
               </span>
             </div>
-            <button onClick={() => deleteTask(task.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>
+            <button onClick={() => deleteTask(task._id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>
               <Trash2 size={18} />
             </button>
           </div>
@@ -64,28 +97,19 @@ export default function TaskDetail() {
       </div>
 
       {isModalOpen && (
-        <div style={{ 
-          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', 
-          background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 
-        }}>
+        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div className="auth-card" style={{ margin: 0, position: 'relative', width: '90%', maxWidth: '400px' }}>
-            <button 
-              onClick={() => setIsModalOpen(false)} 
-              style={{ position: 'absolute', right: '15px', top: '15px', background: 'none', border: 'none', cursor: 'pointer' }}
-            >
-              <X size={20} />
-            </button>
-            <h2 style={{ marginTop: 0, color: 'var(--text-main)' }}>Новая задача</h2>
+            <button onClick={() => setIsModalOpen(false)} style={{ position: 'absolute', right: '15px', top: '15px', background: 'none', border: 'none', cursor: 'pointer' }}><X /></button>
+            <h2 style={{ marginTop: 0 }}>Новая задача</h2>
             <form onSubmit={addTask}>
               <input 
                 className="input-field" 
                 placeholder="Что нужно сделать?" 
-                value={newTask}
-                onChange={(e) => setNewTask(e.target.value)}
-                autoFocus
-                style={{ marginBottom: '20px' }}
+                value={newTask} 
+                onChange={(e) => setNewTask(e.target.value)} 
+                autoFocus 
               />
-              <button type="submit" className="btn-primary">Создать</button>
+              <button type="submit" className="btn-primary" style={{ marginTop: '15px' }}>Создать задачу</button>
             </form>
           </div>
         </div>
